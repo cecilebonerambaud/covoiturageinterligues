@@ -3,211 +3,227 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Covoiturage</title>
+  <title>Covoiturage Interligues</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen p-4">
 
 <div class="max-w-4xl mx-auto">
   <h1 class="text-3xl font-bold text-center mb-2">🚗 Organisation du covoiturage</h1>
-  <p class="text-center text-gray-600 mb-4">Interligues U16 - 2026 - Saint BRIEUC</p>
+  <p class="text-center text-gray-600 mb-6">Interligues U16 — Saint‑Brieuc</p>
 
-  <div class="flex justify-center gap-3 mb-6">
-    <button id="saveBtn" class="bg-green-600 text-white px-6 py-2 rounded-xl shadow hover:bg-green-700">
-      💾 Enregistrer sur Drive
-    </button>
-  </div>
-
-  <!-- Résumé -->
+  <!-- Résumé global -->
   <div id="summary" class="bg-white rounded-2xl shadow-lg p-4 mb-6"></div>
 
-  <div id="events" class="space-y-6"></div>
+  <!-- Conteneur trajets -->
+  <div id="events" class="space-y-8"></div>
 </div>
 
-<template id="event-template">
-  <div class="bg-white rounded-2xl shadow-lg p-5">
-    <h2 class="text-lg font-semibold mb-4"></h2>
-
-    <div class="flex flex-col sm:flex-row gap-2 mb-4">
-      <input type="text" placeholder="Conducteur" class="driver border rounded p-2 flex-1" />
-      <input type="number" placeholder="Places" min="1" class="seats border rounded p-2 w-full sm:w-32" />
-      <button class="add-car bg-indigo-600 text-white px-4 py-2 rounded-xl">+ Voiture</button>
-    </div>
-
-    <div class="cars space-y-3"></div>
-  </div>
-</template>
-
-<template id="car-template">
-  <div class="bg-gray-50 border rounded-xl p-4">
-    <div class="flex justify-between items-center mb-3">
-      <div class="font-semibold">
-        🚘 <span class="driver-name"></span>
-        <span class="text-sm text-gray-500">— <span class="remaining"></span> places restantes</span>
-      </div>
-    </div>
-
-    <div class="flex flex-col sm:flex-row gap-2 mb-2">
-      <input type="text" placeholder="Nom" class="passenger-name border rounded p-2 flex-1" />
-      <input type="tel" placeholder="Téléphone" class="passenger-phone border rounded p-2 flex-1" />
-      <button class="add-passenger bg-green-600 text-white px-3 py-2 rounded-xl">Ajouter</button>
-    </div>
-
-    <ul class="passenger-list space-y-1"></ul>
-  </div>
-</template>
-
 <script>
+/* ======================================================
+   CONFIG
+====================================================== */
+
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwz1DXfobNGYexlzas1jldVPHcYjGhWz0Iyofy9o5Dp5W-uS490HR0nmJIzPA-3tn_ALA/exec";
 
-const eventsData = [
-  "1er mars — Aller - Saran 10h",
-  "1er mars — Retour - Saran 15h30",
+const EVENTS = [
   "14 mars — Aller - Olivet 9h",
-  "15 mars — Retour - Olivet ?"
+  "15 mars — Retour - Olivet"
 ];
 
-let state = {};
-let lastServerHash = "";
+let rawData = [];
+let lastHash = "";
 
 const eventsContainer = document.getElementById("events");
 const summaryContainer = document.getElementById("summary");
-const eventTemplate = document.getElementById("event-template");
-const carTemplate = document.getElementById("car-template");
 
-function hash(data) {
-  return JSON.stringify(data);
-}
+/* ======================================================
+   SYNCHRONISATION AUTOMATIQUE GOOGLE DRIVE
+====================================================== */
 
-document.getElementById("saveBtn").onclick = async () => {
-  await fetch(SCRIPT_URL, {
-    method: "POST",
-    body: JSON.stringify(state)
-  });
-  lastServerHash = hash(state);
-  alert("✅ Données enregistrées et synchronisées");
-};
-
-async function loadFromDrive(auto = false) {
+async function sync() {
   try {
-    const res = await fetch(SCRIPT_URL + "?t=" + Date.now());
+    const res = await fetch(SCRIPT_URL);
     const data = await res.json();
 
-    const newHash = hash(data);
-    if (newHash !== lastServerHash) {
-      state = data || {};
-      lastServerHash = newHash;
-      render();
-      if (auto) console.log("🔄 Mise à jour automatique détectée");
-    }
+    const hash = JSON.stringify(data);
+    if (hash === lastHash) return; // rien changé
+
+    lastHash = hash;
+    rawData = data;
+    render();
+
   } catch (e) {
-    console.warn("Erreur chargement", e);
+    console.error("Erreur sync", e);
   }
 }
 
-setInterval(() => loadFromDrive(true), 5000);
+setInterval(sync, 3000);
+sync();
 
-function renderSummary() {
-  summaryContainer.innerHTML = "<h2 class='font-semibold mb-2'>📊 Résumé des places restantes</h2>";
-  eventsData.forEach((title, index) => {
-    const cars = state[index] || [];
-    let totalSeats = 0;
-    let taken = 0;
-    cars.forEach(car => { totalSeats += car.seats; taken += car.passengers.length; });
-    const remaining = totalSeats - taken;
-    const div = document.createElement("div");
-    div.className = "flex justify-between border-b py-1 text-sm";
-    div.innerHTML = `<span>${title}</span><span>${remaining} place(s) restante(s)</span>`;
-    summaryContainer.appendChild(div);
-  });
-}
+/* ======================================================
+   TRANSFORM DATA → STRUCTURE UTILISABLE
+====================================================== */
 
-function createEvent(title, index) {
-  if (!state[index]) state[index] = [];
-  const clone = eventTemplate.content.cloneNode(true);
-  clone.querySelector("h2").textContent = title;
+function buildState() {
+  const map = {};
+  EVENTS.forEach(e => map[e] = {});
 
-  const addCarBtn = clone.querySelector(".add-car");
-  const carsContainer = clone.querySelector(".cars");
-  const driverInput = clone.querySelector(".driver");
-  const seatsInput = clone.querySelector(".seats");
+  rawData.slice(1).forEach((row, i) => {
+    const [trajet, voiture, conducteur, places, passager, tel] = row;
 
-  addCarBtn.onclick = () => {
-    const driver = driverInput.value.trim();
-    const seats = parseInt(seatsInput.value);
-    if (!driver || !seats) return alert("Infos invalides");
-    state[index].push({ driver, seats, passengers: [] });
-    render();
-  };
+    if (!map[trajet]) return;
 
-  state[index].forEach((car, carIndex) => {
-    carsContainer.appendChild(createCar(index, carIndex, car));
+    if (!map[trajet][voiture]) {
+      map[trajet][voiture] = {
+        conducteur,
+        places: Number(places),
+        passagers: []
+      };
+    }
+
+    if (passager) {
+      map[trajet][voiture].passagers.push({
+        nom: passager,
+        tel,
+        row: i + 2
+      });
+    }
   });
 
-  return clone;
+  return map;
 }
 
-function createCar(eventIndex, carIndex, car) {
-  const clone = carTemplate.content.cloneNode(true);
-  const driverName = clone.querySelector(".driver-name");
-  const remainingSpan = clone.querySelector(".remaining");
-  const nameInput = clone.querySelector(".passenger-name");
-  const phoneInput = clone.querySelector(".passenger-phone");
-  const addBtn = clone.querySelector(".add-passenger");
-  const list = clone.querySelector(".passenger-list");
-
-  driverName.textContent = car.driver;
-  const remaining = () => car.seats - car.passengers.length;
-  remainingSpan.textContent = remaining();
-
-  addBtn.onclick = () => {
-    const name = nameInput.value.trim();
-    const phone = phoneInput.value.trim();
-    if (!name) return;
-    if (remaining() <= 0) return alert("Voiture complète");
-    car.passengers.push({ name, phone });
-    render();
-  };
-
-  car.passengers.forEach((p, passengerIndex) => {
-    const li = document.createElement("li");
-    li.className = "bg-white border rounded-lg p-2 flex justify-between items-center";
-    const info = document.createElement("span");
-    info.textContent = `${p.name} (${p.phone || "pas de tel"})`;
-    const actions = document.createElement("div");
-    actions.className = "flex gap-2";
-    const editBtn = document.createElement("button");
-    editBtn.textContent = "✏️";
-    editBtn.onclick = () => {
-      const newName = prompt("Modifier le nom", p.name);
-      if (newName === null) return;
-      const newPhone = prompt("Modifier téléphone", p.phone);
-      car.passengers[passengerIndex] = { name: newName, phone: newPhone };
-      render();
-    };
-    const delBtn = document.createElement("button");
-    delBtn.textContent = "🗑";
-    delBtn.onclick = () => { car.passengers.splice(passengerIndex, 1); render(); };
-    actions.appendChild(editBtn);
-    actions.appendChild(delBtn);
-    li.appendChild(info);
-    li.appendChild(actions);
-    list.appendChild(li);
-  });
-
-  return clone;
-}
+/* ======================================================
+   RENDER GLOBAL
+====================================================== */
 
 function render() {
+  const state = buildState();
+
   eventsContainer.innerHTML = "";
-  eventsData.forEach((title, index) => {
-    eventsContainer.appendChild(createEvent(title, index));
+
+  let totalSeats = 0;
+  let totalTaken = 0;
+
+  EVENTS.forEach(trajet => {
+
+    const cars = state[trajet];
+
+    const section = document.createElement("div");
+    section.className = "bg-white rounded-2xl shadow-lg p-5";
+
+    section.innerHTML = `
+      <h2 class="text-xl font-semibold mb-4">${trajet}</h2>
+
+      <div class="flex flex-col sm:flex-row gap-2 mb-4">
+        <input placeholder="Conducteur" id="driver-${trajet}" class="border rounded p-2 flex-1" />
+        <input placeholder="Nom voiture" id="car-${trajet}" class="border rounded p-2 flex-1" />
+        <input type="number" placeholder="Places" id="seats-${trajet}" class="border rounded p-2 w-full sm:w-32" />
+        <button onclick="addCar('${trajet}')" class="bg-indigo-600 text-white px-4 py-2 rounded-xl">+ Voiture</button>
+      </div>
+
+      <div class="cars space-y-4"></div>
+    `;
+
+    const carsContainer = section.querySelector(".cars");
+
+    Object.entries(cars).forEach(([carName, car]) => {
+
+      const remaining = car.places - car.passagers.length;
+      totalSeats += car.places;
+      totalTaken += car.passagers.length;
+
+      const carDiv = document.createElement("div");
+      carDiv.className = "bg-gray-50 border rounded-xl p-4";
+
+      carDiv.innerHTML = `
+        <div class="font-semibold mb-2">🚘 ${carName} — ${car.conducteur}</div>
+        <div class="text-sm mb-2">Places restantes : <b>${remaining}</b></div>
+        <div class="passengers space-y-1"></div>
+
+        <input placeholder="Nom" id="name-${trajet}-${carName}" class="border rounded p-2 w-full mt-2" />
+        <input placeholder="Téléphone" id="phone-${trajet}-${carName}" class="border rounded p-2 w-full mt-2" />
+        <button onclick="addPassenger('${trajet}','${carName}','${car.conducteur}',${car.places},${remaining})"
+          class="bg-green-600 text-white w-full py-2 mt-2 rounded-xl">
+          Prendre une place
+        </button>
+      `;
+
+      const list = carDiv.querySelector(".passengers");
+
+      car.passagers.forEach(p => {
+        const row = document.createElement("div");
+        row.className = "flex justify-between text-sm border-b py-1";
+        row.innerHTML = `
+          <span>👤 ${p.nom} (${p.tel || ""})</span>
+          <button onclick="removePassenger(${p.row})">🗑</button>
+        `;
+        list.appendChild(row);
+      });
+
+      carsContainer.appendChild(carDiv);
+    });
+
+    eventsContainer.appendChild(section);
   });
-  renderSummary();
+
+  const remainingTotal = totalSeats - totalTaken;
+
+  summaryContainer.innerHTML = `
+    <h2 class="font-semibold mb-2">📊 Résumé global</h2>
+    <div>${remainingTotal} place(s) restante(s) au total</div>
+  `;
 }
 
-// Chargement initial + auto-sync
-loadFromDrive();
+/* ======================================================
+   ACTIONS GOOGLE DRIVE
+====================================================== */
+
+async function addCar(trajet) {
+  await fetch(SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      trajet,
+      voiture: document.getElementById(`car-${trajet}`).value,
+      conducteur: document.getElementById(`driver-${trajet}`).value,
+      places_total: document.getElementById(`seats-${trajet}`).value,
+      passager: "",
+      telephone: ""
+    })
+  });
+}
+
+async function addPassenger(trajet, voiture, conducteur, places, remaining) {
+  if (remaining <= 0) return alert("Voiture complète");
+
+  const name = document.getElementById(`name-${trajet}-${voiture}`).value;
+  const phone = document.getElementById(`phone-${trajet}-${voiture}`).value;
+
+  if (!name) return alert("Nom requis");
+
+  await fetch(SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      trajet,
+      voiture,
+      conducteur,
+      places_total: places,
+      passager: name,
+      telephone: phone
+    })
+  });
+}
+
+async function removePassenger(row) {
+  if (!confirm("Supprimer ce passager ?")) return;
+
+  await fetch(SCRIPT_URL, {
+    method: "POST",
+    body: JSON.stringify({ action: "delete", row })
+  });
+}
+
 </script>
 </body>
 </html>
