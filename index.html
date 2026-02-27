@@ -16,9 +16,6 @@
     <button id="saveBtn" class="bg-green-600 text-white px-6 py-2 rounded-xl shadow hover:bg-green-700">
       💾 Enregistrer sur Drive
     </button>
-    <button id="loadBtn" class="bg-blue-600 text-white px-6 py-2 rounded-xl shadow hover:bg-blue-700">
-      🔄 Charger
-    </button>
   </div>
 
   <!-- Résumé -->
@@ -61,7 +58,6 @@
 </template>
 
 <script>
-/* ================= CONFIG GOOGLE DRIVE ================= */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwz1DXfobNGYexlzas1jldVPHcYjGhWz0Iyofy9o5Dp5W-uS490HR0nmJIzPA-3tn_ALA/exec";
 
 const eventsData = [
@@ -72,87 +68,62 @@ const eventsData = [
 ];
 
 let state = {};
-let lastServerHash = ""; // permet d'éviter les rechargements inutiles
+let lastServerHash = "";
 
 const eventsContainer = document.getElementById("events");
 const summaryContainer = document.getElementById("summary");
 const eventTemplate = document.getElementById("event-template");
 const carTemplate = document.getElementById("car-template");
 
-/* ================= UTILS ================= */
 function hash(data) {
   return JSON.stringify(data);
 }
 
-/* ================= SAVE TO DRIVE ================= */
 document.getElementById("saveBtn").onclick = async () => {
   await fetch(SCRIPT_URL, {
     method: "POST",
     body: JSON.stringify(state)
   });
-
   lastServerHash = hash(state);
   alert("✅ Données enregistrées et synchronisées");
 };
 
-/* ================= LOAD FROM DRIVE ================= */
 async function loadFromDrive(auto = false) {
   try {
-    const res = await fetch(SCRIPT_URL + "?t=" + Date.now()); // anti-cache
+    const res = await fetch(SCRIPT_URL + "?t=" + Date.now());
     const data = await res.json();
 
     const newHash = hash(data);
-
-    // recharge seulement si changement
     if (newHash !== lastServerHash) {
       state = data || {};
       lastServerHash = newHash;
       render();
-
-      if (auto) {
-        console.log("🔄 Mise à jour automatique détectée");
-      }
+      if (auto) console.log("🔄 Mise à jour automatique détectée");
     }
   } catch (e) {
     console.warn("Erreur chargement", e);
   }
 }
 
-document.getElementById("loadBtn").onclick = () => loadFromDrive(false);
-
-/* ================= AUTO SYNC ================= */
-// Vérifie les changements toutes les 5 secondes
 setInterval(() => loadFromDrive(true), 5000);
 
-/* ================= SUMMARY ================= */
 function renderSummary() {
   summaryContainer.innerHTML = "<h2 class='font-semibold mb-2'>📊 Résumé des places restantes</h2>";
-
   eventsData.forEach((title, index) => {
     const cars = state[index] || [];
-
     let totalSeats = 0;
     let taken = 0;
-
-    cars.forEach(car => {
-      totalSeats += car.seats;
-      taken += car.passengers.length;
-    });
-
+    cars.forEach(car => { totalSeats += car.seats; taken += car.passengers.length; });
     const remaining = totalSeats - taken;
-
     const div = document.createElement("div");
     div.className = "flex justify-between border-b py-1 text-sm";
     div.innerHTML = `<span>${title}</span><span>${remaining} place(s) restante(s)</span>`;
-
     summaryContainer.appendChild(div);
   });
 }
 
-/* ================= EVENTS ================= */
 function createEvent(title, index) {
   if (!state[index]) state[index] = [];
-
   const clone = eventTemplate.content.cloneNode(true);
   clone.querySelector("h2").textContent = title;
 
@@ -165,7 +136,6 @@ function createEvent(title, index) {
     const driver = driverInput.value.trim();
     const seats = parseInt(seatsInput.value);
     if (!driver || !seats) return alert("Infos invalides");
-
     state[index].push({ driver, seats, passengers: [] });
     render();
   };
@@ -177,10 +147,8 @@ function createEvent(title, index) {
   return clone;
 }
 
-/* ================= CARS ================= */
 function createCar(eventIndex, carIndex, car) {
   const clone = carTemplate.content.cloneNode(true);
-
   const driverName = clone.querySelector(".driver-name");
   const remainingSpan = clone.querySelector(".remaining");
   const nameInput = clone.querySelector(".passenger-name");
@@ -189,7 +157,6 @@ function createCar(eventIndex, carIndex, car) {
   const list = clone.querySelector(".passenger-list");
 
   driverName.textContent = car.driver;
-
   const remaining = () => car.seats - car.passengers.length;
   remainingSpan.textContent = remaining();
 
@@ -198,7 +165,6 @@ function createCar(eventIndex, carIndex, car) {
     const phone = phoneInput.value.trim();
     if (!name) return;
     if (remaining() <= 0) return alert("Voiture complète");
-
     car.passengers.push({ name, phone });
     render();
   };
@@ -206,13 +172,10 @@ function createCar(eventIndex, carIndex, car) {
   car.passengers.forEach((p, passengerIndex) => {
     const li = document.createElement("li");
     li.className = "bg-white border rounded-lg p-2 flex justify-between items-center";
-
     const info = document.createElement("span");
     info.textContent = `${p.name} (${p.phone || "pas de tel"})`;
-
     const actions = document.createElement("div");
     actions.className = "flex gap-2";
-
     const editBtn = document.createElement("button");
     editBtn.textContent = "✏️";
     editBtn.onclick = () => {
@@ -222,17 +185,11 @@ function createCar(eventIndex, carIndex, car) {
       car.passengers[passengerIndex] = { name: newName, phone: newPhone };
       render();
     };
-
     const delBtn = document.createElement("button");
     delBtn.textContent = "🗑";
-    delBtn.onclick = () => {
-      car.passengers.splice(passengerIndex, 1);
-      render();
-    };
-
+    delBtn.onclick = () => { car.passengers.splice(passengerIndex, 1); render(); };
     actions.appendChild(editBtn);
     actions.appendChild(delBtn);
-
     li.appendChild(info);
     li.appendChild(actions);
     list.appendChild(li);
@@ -241,7 +198,6 @@ function createCar(eventIndex, carIndex, car) {
   return clone;
 }
 
-/* ================= RENDER ================= */
 function render() {
   eventsContainer.innerHTML = "";
   eventsData.forEach((title, index) => {
