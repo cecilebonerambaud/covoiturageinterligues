@@ -7,162 +7,111 @@
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 p-4">
-
 <div class="max-w-4xl mx-auto">
-<h1 class="text-2xl font-bold text-center mb-6">
-🚗 Covoiturage Interligues
-</h1>
-
+<h1 class="text-2xl font-bold text-center mb-6">🚗 Covoiturage Interligues</h1>
 <div id="app"></div>
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbxqhd6ZZWl8i9LXUigpGQ0etlAKdEIaqa8-Dy-YAB902Y15tHxns5g5USOqIq7PF7pN0g/exec";
-
-/* ===== TRAJETS ===== */
-const TRAJETS = [
-  "14 mars — Aller - Olivet 9h",
-  "15 mars — Retour - Olivet"
-];
-
+const API = "https://script.google.com/macros/s/AKfycbwPz2vwzcbGhfm5kGJfTsj2HHFc7fFsQB8tYFXE4CNRVvgBqXXT8lRBJUKfBBGJQ4c_FA/exec";
+const TRAJETS = ["14 mars — Aller - Olivet 9h","15 mars — Retour - Olivet"];
 let sheetData = [];
 let lastHash = "";
 
-/* ===== SYNC AUTO ===== */
 async function sync() {
   try {
     const res = await fetch(API);
     const data = await res.json();
-
     const hash = JSON.stringify(data);
-    if(hash !== lastHash){
+    if (hash !== lastHash) {
       lastHash = hash;
       sheetData = data;
       render();
     }
-  } catch(e){
-    console.error("Erreur de synchronisation :", e);
-    document.getElementById("app").innerHTML = `
-      <div class="bg-red-100 text-red-700 p-4 rounded">
-        ❌ Impossible de charger les données. Vérifie l'URL Apps Script.
-      </div>
-    `;
+  } catch(e) {
+    console.log("❌ Impossible de charger les données.", e);
   }
 }
-setInterval(sync, 3000);
+setInterval(sync,3000);
 sync();
 
-/* ===== BUILD STATE ===== */
 function build() {
   const map = {};
-  TRAJETS.forEach(t => map[t] = []);
-
-  if(sheetData.length <= 1) return map; // Sheet vide ou seulement header
-
+  TRAJETS.forEach(t=>map[t]={});
   sheetData.slice(1).forEach((r,i)=>{
     const [trajet, voiture, conducteur, places, passager, tel] = r;
-    if(!trajet || !voiture) return;
-
-    if(!map[trajet]) map[trajet] = [];
-
-    // Cherche si voiture existe déjà
-    let car = map[trajet].find(c => c.nom === voiture);
-    if(!car){
-      car = {nom:voiture, conducteur, places: Number(places), passagers: []};
-      map[trajet].push(car);
+    if(!map[trajet]) return;
+    if(!map[trajet][voiture]){
+      map[trajet][voiture]={conducteur, places:Number(places), passagers:[]};
     }
-
-    if(passager) car.passagers.push({nom: passager, tel, row: i+2});
+    if(passager){
+      map[trajet][voiture].passagers.push({nom:passager, tel, row:i+2});
+    }
   });
-
   return map;
 }
 
-/* ===== RENDER ===== */
-function render(){
+function render() {
   const state = build();
   const app = document.getElementById("app");
   app.innerHTML = "";
-
-  TRAJETS.forEach(trajet => {
-    const block = document.createElement("div");
-    block.className = "bg-white p-4 rounded-xl shadow mb-6";
-
-    block.innerHTML = `
+  TRAJETS.forEach(trajet=>{
+    const block=document.createElement("div");
+    block.className="bg-white p-4 rounded-xl shadow mb-6";
+    block.innerHTML=`
       <h2 class="font-semibold mb-3">${trajet}</h2>
       <input id="driver-${trajet}" placeholder="Conducteur" class="border p-2 w-full mb-2 rounded">
       <input id="car-${trajet}" placeholder="Nom voiture" class="border p-2 w-full mb-2 rounded">
       <input id="seats-${trajet}" type="number" placeholder="Places" class="border p-2 w-full mb-3 rounded">
-      <button onclick="addCar('${trajet}')" class="bg-indigo-600 text-white w-full py-2 rounded mb-4">
-        + Ajouter voiture
-      </button>
+      <button onclick="addCar('${trajet}')" class="bg-indigo-600 text-white w-full py-2 rounded mb-4">+ Ajouter voiture</button>
       <div id="cars-${trajet}"></div>
     `;
-
     const carsDiv = block.querySelector(`#cars-${trajet}`);
-    (state[trajet] || []).forEach((car, idx)=>{
+    Object.entries(state[trajet]).forEach(([name,car])=>{
       const rest = car.places - car.passagers.length;
-
-      const div = document.createElement("div");
-      div.className = "border rounded p-3 mb-3";
-
-      div.innerHTML = `
-        <b>🚘 ${car.nom}</b> — ${car.conducteur}<br>
+      const div=document.createElement("div");
+      div.className="border rounded p-3 mb-3";
+      div.innerHTML=`
+        <b>🚘 ${name}</b> — ${car.conducteur}<br>
         Places restantes : ${rest}
         <div class="my-2">
-          ${car.passagers.map((p,i)=>`
+          ${car.passagers.map(p=>`
             <div class="flex justify-between text-sm">
               ${p.nom} (${p.tel||""})
-              <button onclick="removePassenger(${p.row})">🗑</button>
+              <button onclick="remove(${p.row})">🗑</button>
             </div>
           `).join("")}
         </div>
-        <input id="name-${trajet}-${car.nom}" placeholder="Votre nom" class="border p-2 w-full mb-2 rounded">
-        <input id="tel-${trajet}-${car.nom}" placeholder="Téléphone" class="border p-2 w-full mb-2 rounded">
-        <button onclick="takeSeat('${trajet}','${car.nom}','${car.conducteur}',${car.places},${rest})"
-          class="bg-green-600 text-white w-full py-2 rounded">Prendre une place</button>
+        <input id="name-${trajet}-${name}" placeholder="Votre nom" class="border p-2 w-full mb-2 rounded">
+        <input id="tel-${trajet}-${name}" placeholder="Téléphone" class="border p-2 w-full mb-2 rounded">
+        <button onclick="takeSeat('${trajet}','${name}','${car.conducteur}',${car.places},${rest})"
+        class="bg-green-600 text-white w-full py-2 rounded">Prendre une place</button>
       `;
       carsDiv.appendChild(div);
     });
-
     app.appendChild(block);
   });
 }
 
-/* ===== ACTIONS ===== */
 async function addCar(trajet){
-  const voiture = document.getElementById(`car-${trajet}`).value.trim();
-  const conducteur = document.getElementById(`driver-${trajet}`).value.trim();
-  const places = document.getElementById(`seats-${trajet}`).value.trim();
-  if(!voiture || !conducteur || !places) return alert("Tous les champs sont obligatoires");
-
-  await fetch(API,{
-    method:"POST",
-    body: JSON.stringify({trajet, voiture, conducteur, places, passager:"", telephone:""})
-  });
+  const voiture=document.getElementById(`car-${trajet}`).value;
+  const conducteur=document.getElementById(`driver-${trajet}`).value;
+  const places=document.getElementById(`seats-${trajet}`).value;
+  if(!voiture||!conducteur||!places) return alert("Remplis toutes les infos de la voiture");
+  await fetch(API,{method:"POST",body:JSON.stringify({trajet, voiture, conducteur, places, passager:"", telephone:""})});
 }
 
-async function takeSeat(trajet, voiture, conducteur, places, rest){
-  if(rest <= 0) return alert("Voiture complète");
-
-  const nom = document.getElementById(`name-${trajet}-${voiture}`).value.trim();
-  const tel = document.getElementById(`tel-${trajet}-${voiture}`).value.trim();
+async function takeSeat(trajet,voiture,conducteur,places,rest){
+  if(rest<=0) return alert("Voiture complète");
+  const nom=document.getElementById(`name-${trajet}-${voiture}`).value;
+  const tel=document.getElementById(`tel-${trajet}-${voiture}`).value;
   if(!nom) return alert("Nom requis");
-
-  await fetch(API,{
-    method:"POST",
-    body: JSON.stringify({trajet, voiture, conducteur, places, passager:nom, telephone:tel})
-  });
+  await fetch(API,{method:"POST",body:JSON.stringify({trajet, voiture, conducteur, places, passager:nom, telephone:tel})});
 }
 
-async function removePassenger(row){
-  if(!row) return;
-  await fetch(API,{
-    method:"POST",
-    body: JSON.stringify({action:"delete", row})
-  });
+async function remove(row){
+  await fetch(API,{method:"POST",body:JSON.stringify({action:"delete",row})});
 }
-
 </script>
 </body>
 </html>
