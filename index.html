@@ -11,20 +11,17 @@ body {
   color: #333;
   margin: 0;
 }
-
 h1 {
   text-align: center;
   color: #2c3e50;
   margin-bottom: 20px;
 }
-
 .container {
   display: flex;
   flex-wrap: wrap;
   gap: 15px;
   justify-content: center;
 }
-
 .column {
   flex: 1 1 300px;
   max-width: 400px;
@@ -33,30 +30,25 @@ h1 {
   padding: 15px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-
 .column h2 {
   text-align: center;
   color: #2980b9;
   margin-top: 0;
 }
-
 .car-card {
   background: #f9f9f9;
   border-radius: 8px;
   padding: 10px;
   margin: 10px 0;
 }
-
 .car-card p { margin: 5px 0; }
-
-input[type=text], input[type=number] {
+input[type=text], input[type=number], select {
   width: calc(100% - 12px);
   padding: 5px;
   margin-top: 5px;
   border: 1px solid #ccc;
   border-radius: 4px;
 }
-
 button {
   margin-top: 5px;
   width: 100%;
@@ -67,12 +59,10 @@ button {
   border-radius: 5px;
   cursor: pointer;
 }
-
 button:disabled {
   background: #ccc;
   cursor: not-allowed;
 }
-
 form {
   background: #fff;
   padding: 10px;
@@ -80,11 +70,9 @@ form {
   margin-bottom: 15px;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
-
+form h2 { margin-top: 0; }
 @media(max-width: 600px){
-  .container {
-    flex-direction: column;
-  }
+  .container { flex-direction: column; }
 }
 </style>
 </head>
@@ -112,21 +100,21 @@ form {
 </div>
 
 <script>
-const webAppUrl = "https://script.google.com/macros/s/AKfycbzspxrSOzQzwxtOZ0HHmlwTjJbJidfcpPj6yRLNMGq41BZtGqgIVO2dJb6Y5vbPtqYAcA/exec";
+const webAppUrl = "VOTRE_URL_APPS_SCRIPT_ICI"; // <-- remplace par l'URL Apps Script
 
-// Tableau local des voitures
 let carData = [];
 
-// Rendu des voitures
+// Fonction pour afficher les voitures
 function renderCars() {
-  const traj1 = document.getElementById("trajet1");
-  const traj2 = document.getElementById("trajet2");
-  traj1.innerHTML = '<h2>Samedi 14 mars 9h à Olivet</h2>';
-  traj2.innerHTML = '<h2>Dimanche 15 mars ?h à Olivet</h2>';
+  const trajet1 = document.getElementById("trajet1");
+  const trajet2 = document.getElementById("trajet2");
+  trajet1.innerHTML = '<h2>Samedi 14 mars 9h à Olivet</h2>';
+  trajet2.innerHTML = '<h2>Dimanche 15 mars ?h à Olivet</h2>';
 
   carData.forEach((car, index) => {
     const placesRestantes = car.places - car.passagers.length;
     const disabled = placesRestantes <= 0 ? "disabled" : "";
+
     const card = document.createElement("div");
     card.className = "car-card";
     card.innerHTML = `
@@ -136,12 +124,13 @@ function renderCars() {
       <input type="text" id="name${index}" placeholder="Votre nom">
       <button ${disabled} onclick="joinCar(${index})">S'inscrire</button>
     `;
-    if(car.date.startsWith("samedi")) traj1.appendChild(card);
-    else traj2.appendChild(card);
+
+    if(car.date.startsWith("samedi")) trajet1.appendChild(card);
+    else trajet2.appendChild(card);
   });
 }
 
-// Inscription dans une voiture
+// Fonction pour s'inscrire sur une voiture
 async function joinCar(index) {
   const nameInput = document.getElementById("name" + index);
   const name = nameInput.value.trim();
@@ -151,6 +140,7 @@ async function joinCar(index) {
   try {
     const res = await fetch(webAppUrl, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({row, passenger: name, conducteur: carData[index].conducteur})
     });
     const result = await res.json();
@@ -164,35 +154,46 @@ async function joinCar(index) {
   }
 }
 
-// Ajouter une voiture
+// Fonction pour proposer une voiture
 document.getElementById("addCarForm").addEventListener("submit", async function(e){
   e.preventDefault();
   const driver = document.getElementById("driverName").value.trim();
   const seats = parseInt(document.getElementById("seats").value);
   const date = document.getElementById("date").value;
 
-  if(!driver || !seats) return;
+  if(!driver || !seats) return alert("Veuillez remplir le nom et le nombre de places");
 
-  const newCar = {conducteur: driver, places: seats, passagers: [], date, heure: date.includes("samedi")?"9h":"?", lieu:"Olivet"};
+  const newCar = {
+    conducteur: driver,
+    places: seats,
+    passagers: [],
+    date: date,
+    heure: date.includes("samedi")?"9h":"?",
+    lieu: "Olivet"
+  };
 
   try {
     const res = await fetch(webAppUrl, {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({newCar})
     });
+
     const result = await res.json();
     if(result.success){
       carData.push(newCar);
       renderCars();
       this.reset();
+    } else {
+      alert("Erreur lors de l'ajout (réponse Apps Script)");
     }
   } catch(err){
     console.error(err);
-    alert("Erreur lors de l'ajout");
+    alert("Erreur lors de l'ajout (réseau ou Apps Script)");
   }
 });
 
-// Charger voitures depuis Google Sheet
+// Fonction pour charger les voitures depuis Google Sheet
 async function loadCars(){
   try {
     const res = await fetch(webAppUrl);
