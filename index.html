@@ -61,9 +61,7 @@
 </template>
 
 <script>
-/* ================= CONFIG GOOGLE DRIVE =================
-   👉 Tu mettras ici l'URL du Web App Google Apps Script
-*/
+/* ================= CONFIG GOOGLE DRIVE ================= */
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwz1DXfobNGYexlzas1jldVPHcYjGhWz0Iyofy9o5Dp5W-uS490HR0nmJIzPA-3tn_ALA/exec";
 
 const eventsData = [
@@ -74,34 +72,57 @@ const eventsData = [
 ];
 
 let state = {};
+let lastServerHash = ""; // permet d'éviter les rechargements inutiles
 
 const eventsContainer = document.getElementById("events");
 const summaryContainer = document.getElementById("summary");
 const eventTemplate = document.getElementById("event-template");
 const carTemplate = document.getElementById("car-template");
 
+/* ================= UTILS ================= */
+function hash(data) {
+  return JSON.stringify(data);
+}
+
 /* ================= SAVE TO DRIVE ================= */
 document.getElementById("saveBtn").onclick = async () => {
-  if (!SCRIPT_URL.includes("http")) {
-    alert("Ajoute ton URL Apps Script d'abord");
-    return;
-  }
-
   await fetch(SCRIPT_URL, {
     method: "POST",
     body: JSON.stringify(state)
   });
 
-  alert("✅ Données enregistrées dans ton Google Drive");
+  lastServerHash = hash(state);
+  alert("✅ Données enregistrées et synchronisées");
 };
 
 /* ================= LOAD FROM DRIVE ================= */
-document.getElementById("loadBtn").onclick = async () => {
-  const res = await fetch(SCRIPT_URL);
-  const data = await res.json();
-  if (data) state = data;
-  render();
-};
+async function loadFromDrive(auto = false) {
+  try {
+    const res = await fetch(SCRIPT_URL + "?t=" + Date.now()); // anti-cache
+    const data = await res.json();
+
+    const newHash = hash(data);
+
+    // recharge seulement si changement
+    if (newHash !== lastServerHash) {
+      state = data || {};
+      lastServerHash = newHash;
+      render();
+
+      if (auto) {
+        console.log("🔄 Mise à jour automatique détectée");
+      }
+    }
+  } catch (e) {
+    console.warn("Erreur chargement", e);
+  }
+}
+
+document.getElementById("loadBtn").onclick = () => loadFromDrive(false);
+
+/* ================= AUTO SYNC ================= */
+// Vérifie les changements toutes les 5 secondes
+setInterval(() => loadFromDrive(true), 5000);
 
 /* ================= SUMMARY ================= */
 function renderSummary() {
@@ -229,7 +250,8 @@ function render() {
   renderSummary();
 }
 
-render();
+// Chargement initial + auto-sync
+loadFromDrive();
 </script>
 </body>
 </html>
