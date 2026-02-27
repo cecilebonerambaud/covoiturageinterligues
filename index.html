@@ -2,116 +2,220 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Covoiturage</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<title>Covoiturage interligue Saint Brieux</title>
+<style>
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: #eef2f7;
+  padding: 15px;
+  color: #333;
+  margin: 0;
+}
+
+h1 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px;
+  justify-content: center;
+}
+
+.column {
+  flex: 1 1 300px;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.column h2 {
+  text-align: center;
+  color: #2980b9;
+  margin-top: 0;
+}
+
+.car-card {
+  background: #f9f9f9;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 10px 0;
+}
+
+.car-card p { margin: 5px 0; }
+
+input[type=text], input[type=number] {
+  width: calc(100% - 12px);
+  padding: 5px;
+  margin-top: 5px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+button {
+  margin-top: 5px;
+  width: 100%;
+  padding: 6px;
+  background: #27ae60;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+form {
+  background: #fff;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+@media(max-width: 600px){
+  .container {
+    flex-direction: column;
+  }
+}
+</style>
 </head>
-<body class="bg-slate-100 p-4">
-<div class="max-w-4xl mx-auto">
-<h1 class="text-2xl font-bold text-center mb-6">🚗 Covoiturage Interligues</h1>
-<div id="app"></div>
+<body>
+<h1>Covoiturage interligue Saint Brieux</h1>
+
+<form id="addCarForm">
+  <h2>Proposer une voiture</h2>
+  <input type="text" id="driverName" placeholder="Nom du conducteur" required>
+  <input type="number" id="seats" placeholder="Nombre de places" min="1" required>
+  <select id="date">
+    <option value="samedi 14 mars">samedi 14 mars 9h</option>
+    <option value="dimanche 15 mars">dimanche 15 mars ?h</option>
+  </select>
+  <button type="submit">Proposer</button>
+</form>
+
+<div class="container">
+  <div class="column" id="trajet1">
+    <h2>Samedi 14 mars 9h à Olivet</h2>
+  </div>
+  <div class="column" id="trajet2">
+    <h2>Dimanche 15 mars ?h à Olivet</h2>
+  </div>
 </div>
 
 <script>
-const API = "https://script.google.com/macros/s/AKfycbz1_FcbLGqth4raMCHDaf_AwiSXpDV01aiHHfdU2Z18xpyvztktzhcce9nbWjG_Np-YNA/exec";
-const TRAJETS = ["14 mars — Aller - Olivet 9h","15 mars — Retour - Olivet"];
-let sheetData = [];
-let lastHash = "";
+const webAppUrl = "https://script.google.com/macros/s/AKfycbzspxrSOzQzwxtOZ0HHmlwTjJbJidfcpPj6yRLNMGq41BZtGqgIVO2dJb6Y5vbPtqYAcA/exec";
 
-async function sync() {
+// Tableau local des voitures
+let carData = [];
+
+// Rendu des voitures
+function renderCars() {
+  const traj1 = document.getElementById("trajet1");
+  const traj2 = document.getElementById("trajet2");
+  traj1.innerHTML = '<h2>Samedi 14 mars 9h à Olivet</h2>';
+  traj2.innerHTML = '<h2>Dimanche 15 mars ?h à Olivet</h2>';
+
+  carData.forEach((car, index) => {
+    const placesRestantes = car.places - car.passagers.length;
+    const disabled = placesRestantes <= 0 ? "disabled" : "";
+    const card = document.createElement("div");
+    card.className = "car-card";
+    card.innerHTML = `
+      <p><strong>Conducteur :</strong> ${car.conducteur}</p>
+      <p><strong>Places restantes :</strong> ${placesRestantes}</p>
+      <p><strong>Passagers :</strong> ${car.passagers.join(", ") || "aucun"}</p>
+      <input type="text" id="name${index}" placeholder="Votre nom">
+      <button ${disabled} onclick="joinCar(${index})">S'inscrire</button>
+    `;
+    if(car.date.startsWith("samedi")) traj1.appendChild(card);
+    else traj2.appendChild(card);
+  });
+}
+
+// Inscription dans une voiture
+async function joinCar(index) {
+  const nameInput = document.getElementById("name" + index);
+  const name = nameInput.value.trim();
+  if(!name) return alert("Entrez votre nom");
+
+  const row = carData[index].row || (index+2);
   try {
-    const res = await fetch(API);
-    const data = await res.json();
-    const hash = JSON.stringify(data);
-    if (hash !== lastHash) {
-      lastHash = hash;
-      sheetData = data;
-      render();
+    const res = await fetch(webAppUrl, {
+      method: "POST",
+      body: JSON.stringify({row, passenger: name, conducteur: carData[index].conducteur})
+    });
+    const result = await res.json();
+    if(result.success){
+      carData[index].passagers.push(name);
+      renderCars();
     }
-  } catch(e) {
-    console.log("❌ Impossible de charger les données.", e);
+  } catch(err){
+    console.error(err);
+    alert("Erreur lors de l'inscription");
   }
 }
-setInterval(sync,3000);
-sync();
 
-function build() {
-  const map = {};
-  TRAJETS.forEach(t=>map[t]={});
-  sheetData.slice(1).forEach((r,i)=>{
-    const [trajet, voiture, conducteur, places, passager, tel] = r;
-    if(!map[trajet]) return;
-    if(!map[trajet][voiture]){
-      map[trajet][voiture]={conducteur, places:Number(places), passagers:[]};
-    }
-    if(passager){
-      map[trajet][voiture].passagers.push({nom:passager, tel, row:i+2});
-    }
-  });
-  return map;
-}
+// Ajouter une voiture
+document.getElementById("addCarForm").addEventListener("submit", async function(e){
+  e.preventDefault();
+  const driver = document.getElementById("driverName").value.trim();
+  const seats = parseInt(document.getElementById("seats").value);
+  const date = document.getElementById("date").value;
 
-function render() {
-  const state = build();
-  const app = document.getElementById("app");
-  app.innerHTML = "";
-  TRAJETS.forEach(trajet=>{
-    const block=document.createElement("div");
-    block.className="bg-white p-4 rounded-xl shadow mb-6";
-    block.innerHTML=`
-      <h2 class="font-semibold mb-3">${trajet}</h2>
-      <input id="driver-${trajet}" placeholder="Conducteur" class="border p-2 w-full mb-2 rounded">
-      <input id="car-${trajet}" placeholder="Nom voiture" class="border p-2 w-full mb-2 rounded">
-      <input id="seats-${trajet}" type="number" placeholder="Places" class="border p-2 w-full mb-3 rounded">
-      <button onclick="addCar('${trajet}')" class="bg-indigo-600 text-white w-full py-2 rounded mb-4">+ Ajouter voiture</button>
-      <div id="cars-${trajet}"></div>
-    `;
-    const carsDiv = block.querySelector(`#cars-${trajet}`);
-    Object.entries(state[trajet]).forEach(([name,car])=>{
-      const rest = car.places - car.passagers.length;
-      const div=document.createElement("div");
-      div.className="border rounded p-3 mb-3";
-      div.innerHTML=`
-        <b>🚘 ${name}</b> — ${car.conducteur}<br>
-        Places restantes : ${rest}
-        <div class="my-2">
-          ${car.passagers.map(p=>`
-            <div class="flex justify-between text-sm">
-              ${p.nom} (${p.tel||""})
-              <button onclick="remove(${p.row})">🗑</button>
-            </div>
-          `).join("")}
-        </div>
-        <input id="name-${trajet}-${name}" placeholder="Votre nom" class="border p-2 w-full mb-2 rounded">
-        <input id="tel-${trajet}-${name}" placeholder="Téléphone" class="border p-2 w-full mb-2 rounded">
-        <button onclick="takeSeat('${trajet}','${name}','${car.conducteur}',${car.places},${rest})"
-        class="bg-green-600 text-white w-full py-2 rounded">Prendre une place</button>
-      `;
-      carsDiv.appendChild(div);
+  if(!driver || !seats) return;
+
+  const newCar = {conducteur: driver, places: seats, passagers: [], date, heure: date.includes("samedi")?"9h":"?", lieu:"Olivet"};
+
+  try {
+    const res = await fetch(webAppUrl, {
+      method: "POST",
+      body: JSON.stringify({newCar})
     });
-    app.appendChild(block);
-  });
+    const result = await res.json();
+    if(result.success){
+      carData.push(newCar);
+      renderCars();
+      this.reset();
+    }
+  } catch(err){
+    console.error(err);
+    alert("Erreur lors de l'ajout");
+  }
+});
+
+// Charger voitures depuis Google Sheet
+async function loadCars(){
+  try {
+    const res = await fetch(webAppUrl);
+    const data = await res.json();
+    data.slice(1).forEach((row,i)=>{
+      carData.push({
+        conducteur: row[0],
+        places: parseInt(row[1]),
+        passagers: row[2]?row[2].split(",").map(p=>p.trim()):[],
+        date: row[3] || (i===0?"samedi 14 mars":"dimanche 15 mars"),
+        heure: row[4] || (i===0?"9h":"?"),
+        lieu: row[5] || "Olivet",
+        row: i+2
+      });
+    });
+    renderCars();
+  } catch(err){
+    console.error(err);
+    renderCars();
+  }
 }
 
-async function addCar(trajet){
-  const voiture=document.getElementById(`car-${trajet}`).value;
-  const conducteur=document.getElementById(`driver-${trajet}`).value;
-  const places=document.getElementById(`seats-${trajet}`).value;
-  if(!voiture||!conducteur||!places) return alert("Remplis toutes les infos de la voiture");
-  await fetch(API,{method:"POST",body:JSON.stringify({trajet, voiture, conducteur, places, passager:"", telephone:""})});
-}
-
-async function takeSeat(trajet,voiture,conducteur,places,rest){
-  if(rest<=0) return alert("Voiture complète");
-  const nom=document.getElementById(`name-${trajet}-${voiture}`).value;
-  const tel=document.getElementById(`tel-${trajet}-${voiture}`).value;
-  if(!nom) return alert("Nom requis");
-  await fetch(API,{method:"POST",body:JSON.stringify({trajet, voiture, conducteur, places, passager:nom, telephone:tel})});
-}
-
-async function remove(row){
-  await fetch(API,{method:"POST",body:JSON.stringify({action:"delete",row})});
-}
+loadCars();
 </script>
 </body>
 </html>
