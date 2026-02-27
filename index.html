@@ -50,7 +50,40 @@ async function sync() {
 }
 
 setInterval(sync,3000);
-fetch(API);
+<script>
+async function sync() {
+
+  try {
+
+    const res = await fetch(API);
+
+    if(!res.ok){
+      throw new Error("API inaccessible");
+    }
+
+    const data = await res.json();
+
+    const hash = JSON.stringify(data);
+    if (hash === lastHash) return;
+
+    lastHash = hash;
+    sheetData = data;
+
+    render();
+
+  } catch(e){
+
+    document.getElementById("app").innerHTML = `
+      <div class="bg-red-100 text-red-700 p-4 rounded">
+        ❌ Impossible de charger les données.<br>
+        Vérifie le déploiement Google Apps Script.
+      </div>
+    `;
+
+    console.error(e);
+  }
+}
+</script>;
 
 /* ===== STRUCTURE ===== */
 
