@@ -4,150 +4,119 @@
 <meta charset="UTF-8">
 <title>Covoiturage interligue Saint Brieux</title>
 <style>
-body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #eef2f7; padding: 15px; color: #333; margin:0; }
-h1 { text-align: center; color: #2c3e50; margin-bottom: 20px; }
-.container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; }
-.column { flex: 1 1 300px; max-width: 400px; background: #fff; border-radius: 10px; padding: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-.column h2 { text-align: center; color: #2980b9; margin-top: 0; }
-.car-card { background: #f9f9f9; border-radius: 8px; padding: 10px; margin: 10px 0; }
-.car-card p { margin: 5px 0; }
-input[type=text], input[type=number], select { width: calc(100% - 12px); padding: 5px; margin-top: 5px; border: 1px solid #ccc; border-radius: 4px; }
-button { margin-top: 5px; width: 100%; padding: 6px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; }
-button:disabled { background: #ccc; cursor: not-allowed; }
-form { background: #fff; padding: 10px; border-radius: 10px; margin-bottom: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-form h2 { margin-top: 0; }
-@media(max-width: 600px){ .container { flex-direction: column; } }
+body{font-family:sans-serif;background:#eef2f7;margin:0;padding:15px;color:#333;}
+h1{text-align:center;color:#2c3e50;margin-bottom:20px;}
+.container{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;}
+.column{flex:1 1 300px;max-width:400px;background:#fff;border-radius:10px;padding:15px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+.column h2{text-align:center;color:#2980b9;margin-top:0;}
+.car-card{background:#f9f9f9;border-radius:8px;padding:10px;margin:10px 0;}
+.car-card p{margin:5px 0;}
+input[type=text],input[type=number],select{width:calc(100% - 12px);padding:5px;margin-top:5px;border:1px solid #ccc;border-radius:4px;}
+button{margin-top:5px;width:100%;padding:6px;background:#27ae60;color:white;border:none;border-radius:5px;cursor:pointer;}
+button:disabled{background:#ccc;cursor:not-allowed;}
+form{background:#fff;padding:10px;border-radius:10px;margin-bottom:15px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
+form h2{margin-top:0;}
+@media(max-width:600px){.container{flex-direction:column;}}
 </style>
 </head>
 <body>
+
 <h1>Covoiturage interligue Saint Brieux</h1>
 
 <form id="addCarForm">
-  <h2>Proposer une voiture</h2>
-  <input type="text" id="driverName" placeholder="Nom du conducteur" required>
-  <input type="number" id="seats" placeholder="Nombre de places" min="1" required>
-  <select id="date">
-    <option value="samedi 14 mars">samedi 14 mars 9h</option>
-    <option value="dimanche 15 mars">dimanche 15 mars ?h</option>
-  </select>
-  <button type="submit">Proposer</button>
+<h2>Proposer une voiture</h2>
+<input type="text" id="driverName" placeholder="Nom du conducteur" required>
+<input type="number" id="seats" placeholder="Nombre de places" min="1" required>
+<select id="date">
+<option value="samedi 14 mars">samedi 14 mars 9h</option>
+<option value="dimanche 15 mars">dimanche 15 mars ?h</option>
+</select>
+<button type="submit">Proposer</button>
 </form>
 
 <div class="container">
-  <div class="column" id="trajet1">
-    <h2>Samedi 14 mars 9h à Olivet</h2>
-  </div>
-  <div class="column" id="trajet2">
-    <h2>Dimanche 15 mars ?h à Olivet</h2>
-  </div>
+<div class="column" id="trajet1"><h2>Samedi 14 mars 9h à Olivet</h2></div>
+<div class="column" id="trajet2"><h2>Dimanche 15 mars ?h à Olivet</h2></div>
 </div>
 
 <script>
-const webAppUrl = "https://script.google.com/macros/s/AKfycbxFlLdq5P4bP-PFAqZWeOkNLPWp9DbKlwhpSLmasNdFp_dWjRb78OXcujS3FHVyEYgX/exec"; // <-- Remplace par l'URL Web App
+const webAppUrl = "https://script.google.com/macros/s/AKfycbyHGXIWPSM3dgzOD6PaUbNkYjFN75s7H1CpxgV5iLfvQjEEw_3UoOJiHh3TGXeBzLGnnA/exec"; // remplacer
 
 let carData = [];
 
-// Affiche les voitures
-function renderCars() {
-  const trajet1 = document.getElementById("trajet1");
-  const trajet2 = document.getElementById("trajet2");
-  trajet1.innerHTML = '<h2>Samedi 14 mars 9h à Olivet</h2>';
-  trajet2.innerHTML = '<h2>Dimanche 15 mars ?h à Olivet</h2>';
+function renderCars(){
+  const t1 = document.getElementById("trajet1");
+  const t2 = document.getElementById("trajet2");
+  t1.innerHTML='<h2>Samedi 14 mars 9h à Olivet</h2>';
+  t2.innerHTML='<h2>Dimanche 15 mars ?h à Olivet</h2>';
 
-  carData.forEach((car,index)=>{
+  carData.forEach((car,i)=>{
     const placesRestantes = car.places - car.passagers.length;
-    const disabled = placesRestantes <= 0 ? "disabled" : "";
-    const card = document.createElement("div");
-    card.className = "car-card";
-    card.innerHTML = `
+    const disabled = placesRestantes<=0 ? "disabled":"";
+    const card=document.createElement("div");
+    card.className="car-card";
+    card.innerHTML=`
       <p><strong>Conducteur :</strong> ${car.conducteur}</p>
       <p><strong>Places restantes :</strong> ${placesRestantes}</p>
-      <p><strong>Passagers :</strong> ${car.passagers.join(", ") || "aucun"}</p>
-      <input type="text" id="name${index}" placeholder="Votre nom">
-      <button ${disabled} onclick="joinCar(${index})">S'inscrire</button>
+      <p><strong>Passagers :</strong> ${car.passagers.join(", ")||"aucun"}</p>
+      <input type="text" id="name${i}" placeholder="Votre nom">
+      <button ${disabled} onclick="joinCar(${i})">S'inscrire</button>
     `;
-    if(car.date.startsWith("samedi")) trajet1.appendChild(card);
-    else trajet2.appendChild(card);
+    car.date.startsWith("samedi")?t1.appendChild(card):t2.appendChild(card);
   });
 }
 
-// Inscription sur une voiture
-async function joinCar(index){
-  const nameInput = document.getElementById("name"+index);
-  const name = nameInput.value.trim();
-  if(!name) return alert("Entrez votre nom");
-  const row = carData[index].row || (index+2);
+async function joinCar(i){
+  const name=document.getElementById("name"+i).value.trim();
+  if(!name)return alert("Entrez votre nom");
+  const row=carData[i].row||i+2;
   try{
-    const res = await fetch(webAppUrl,{
+    const res=await fetch(webAppUrl,{
       method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({row, passenger:name, conducteur:carData[index].conducteur})
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({row, passenger:name})
     });
-    const result = await res.json();
+    const result=await res.json();
     if(result.success){
-      carData[index].passagers.push(name);
+      carData[i].passagers.push(name);
       renderCars();
-    } else {
-      alert("Erreur Apps Script : "+(result.error||result.message));
-    }
-  } catch(err){
-    console.error(err);
-    alert("Erreur réseau ou Apps Script : "+err.message);
-  }
+    } else alert("Erreur Apps Script : "+(result.error||result.message));
+  } catch(err){alert("Erreur réseau : "+err.message);}
 }
 
-// Proposer une voiture
-document.getElementById("addCarForm").addEventListener("submit", async function(e){
+document.getElementById("addCarForm").addEventListener("submit",async function(e){
   e.preventDefault();
-  const driver = document.getElementById("driverName").value.trim();
-  const seats = parseInt(document.getElementById("seats").value);
-  const date = document.getElementById("date").value;
-  if(!driver || !seats) return alert("Veuillez remplir le nom et le nombre de places");
-
-  const newCar = { conducteur:driver, places:seats, passagers:[], date:date, heure:date.includes("samedi")?"9h":"?", lieu:"Olivet" };
-
+  const driver=document.getElementById("driverName").value.trim();
+  const seats=parseInt(document.getElementById("seats").value);
+  const date=document.getElementById("date").value;
+  if(!driver||!seats)return alert("Nom et nombre de places requis");
+  const newCar={conducteur:driver,places:seats,passagers:[],date:date,heure:date.includes("samedi")?"9h":"?",lieu:"Olivet"};
   try{
-    const res = await fetch(webAppUrl,{
+    const res=await fetch(webAppUrl,{
       method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({newCar})
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({newCar})
     });
-    const result = await res.json();
+    const result=await res.json();
     if(result.success){
       carData.push(newCar);
       renderCars();
       this.reset();
-      alert("Voiture ajoutée avec succès !");
-    } else {
-      alert("Erreur Apps Script : "+(result.error||result.message));
-    }
-  } catch(err){
-    console.error(err);
-    alert("Erreur réseau ou Apps Script : "+err.message);
-  }
+      alert("Voiture ajoutée !");
+    } else alert("Erreur Apps Script : "+(result.error||result.message));
+  }catch(err){alert("Erreur réseau : "+err.message);}
 });
 
-// Charger voitures depuis Google Sheet
 async function loadCars(){
   try{
-    const res = await fetch(webAppUrl);
-    const data = await res.json();
+    const res=await fetch(webAppUrl);
+    const data=await res.json();
     data.slice(1).forEach((row,i)=>{
-      carData.push({
-        conducteur: row[0],
-        places: parseInt(row[1]),
-        passagers: row[2]?row[2].split(",").map(p=>p.trim()):[],
-        date: row[3] || (i===0?"samedi 14 mars":"dimanche 15 mars"),
-        heure: row[4] || (i===0?"9h":"?"),
-        lieu: row[5] || "Olivet",
-        row: i+2
-      });
+      if(!row[0])return; // ignore les lignes vides
+      carData.push({conducteur:row[0],places:parseInt(row[1]),passagers:row[2]?row[2].split(",").map(p=>p.trim()):[],date:row[3],heure:row[4],lieu:row[5],row:i+2});
     });
     renderCars();
-  } catch(err){
-    console.error(err);
-    alert("Erreur lors du chargement des voitures : "+err.message);
-  }
+  }catch(err){alert("Erreur chargement voitures : "+err.message);}
 }
 
 loadCars();
