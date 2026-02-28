@@ -1,125 +1,58 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+
 <meta charset="UTF-8">
-<title>Covoiturage interligue Saint Brieux</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Covoiturage Interligues</title>
+
+<!-- Redirection instantanée -->
+<meta http-equiv="refresh"
+content="0; url=https://script.google.com/macros/s/AKfycbytarFOAKx2kF0EmKL62iuhPvcOJt9_VS0b3xzG4mJVLZvo8CfxWDpb9ZZwucphddzgTw/exec">
+
 <style>
-body{font-family:sans-serif;background:#eef2f7;margin:0;padding:15px;color:#333;}
-h1{text-align:center;color:#2c3e50;margin-bottom:20px;}
-.container{display:flex;flex-wrap:wrap;gap:15px;justify-content:center;}
-.column{flex:1 1 300px;max-width:400px;background:#fff;border-radius:10px;padding:15px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-.column h2{text-align:center;color:#2980b9;margin-top:0;}
-.car-card{background:#f9f9f9;border-radius:8px;padding:10px;margin:10px 0;}
-.car-card p{margin:5px 0;}
-input[type=text],input[type=number],select{width:calc(100% - 12px);padding:5px;margin-top:5px;border:1px solid #ccc;border-radius:4px;}
-button{margin-top:5px;width:100%;padding:6px;background:#27ae60;color:white;border:none;border-radius:5px;cursor:pointer;}
-button:disabled{background:#ccc;cursor:not-allowed;}
-form{background:#fff;padding:10px;border-radius:10px;margin-bottom:15px;box-shadow:0 4px 12px rgba(0,0,0,0.1);}
-form h2{margin-top:0;}
-@media(max-width:600px){.container{flex-direction:column;}}
+body{
+  font-family:Arial, sans-serif;
+  background:#f2f4f7;
+  height:100vh;
+  margin:0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+}
+a{
+  color:#1976d2;
+  font-size:18px;
+  text-decoration:none;
+  font-weight:bold;
+}
 </style>
-</head>
-<body>
-
-<h1>Covoiturage interligue Saint Brieux</h1>
-
-<form id="addCarForm">
-<h2>Proposer une voiture</h2>
-<input type="text" id="driverName" placeholder="Nom du conducteur" required>
-<input type="number" id="seats" placeholder="Nombre de places" min="1" required>
-<select id="date">
-<option value="samedi 14 mars">samedi 14 mars 9h</option>
-<option value="dimanche 15 mars">dimanche 15 mars ?h</option>
-</select>
-<button type="submit">Proposer</button>
-</form>
-
-<div class="container">
-<div class="column" id="trajet1"><h2>Samedi 14 mars 9h à Olivet</h2></div>
-<div class="column" id="trajet2"><h2>Dimanche 15 mars ?h à Olivet</h2></div>
-</div>
 
 <script>
-const webAppUrl = "https://script.google.com/macros/s/AKfycbxFlLdq5P4bP-PFAqZWeOkNLPWp9DbKlwhpSLmasNdFp_dWjRb78OXcujS3FHVyEYgX/exec"; // remplacer
-
-let carData = [];
-
-function renderCars(){
-  const t1 = document.getElementById("trajet1");
-  const t2 = document.getElementById("trajet2");
-  t1.innerHTML='<h2>Samedi 14 mars 9h à Olivet</h2>';
-  t2.innerHTML='<h2>Dimanche 15 mars ?h à Olivet</h2>';
-
-  carData.forEach((car,i)=>{
-    const placesRestantes = car.places - car.passagers.length;
-    const disabled = placesRestantes<=0 ? "disabled":"";
-    const card=document.createElement("div");
-    card.className="car-card";
-    card.innerHTML=`
-      <p><strong>Conducteur :</strong> ${car.conducteur}</p>
-      <p><strong>Places restantes :</strong> ${placesRestantes}</p>
-      <p><strong>Passagers :</strong> ${car.passagers.join(", ")||"aucun"}</p>
-      <input type="text" id="name${i}" placeholder="Votre nom">
-      <button ${disabled} onclick="joinCar(${i})">S'inscrire</button>
-    `;
-    car.date.startsWith("samedi")?t1.appendChild(card):t2.appendChild(card);
-  });
-}
-
-async function joinCar(i){
-  const name=document.getElementById("name"+i).value.trim();
-  if(!name)return alert("Entrez votre nom");
-  const row=carData[i].row||i+2;
-  try{
-    const res=await fetch(webAppUrl,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({row, passenger:name})
-    });
-    const result=await res.json();
-    if(result.success){
-      carData[i].passagers.push(name);
-      renderCars();
-    } else alert("Erreur Apps Script : "+(result.error||result.message));
-  } catch(err){alert("Erreur réseau : "+err.message);}
-}
-
-document.getElementById("addCarForm").addEventListener("submit",async function(e){
-  e.preventDefault();
-  const driver=document.getElementById("driverName").value.trim();
-  const seats=parseInt(document.getElementById("seats").value);
-  const date=document.getElementById("date").value;
-  if(!driver||!seats)return alert("Nom et nombre de places requis");
-  const newCar={conducteur:driver,places:seats,passagers:[],date:date,heure:date.includes("samedi")?"9h":"?",lieu:"Olivet"};
-  try{
-    const res=await fetch(webAppUrl,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({newCar})
-    });
-    const result=await res.json();
-    if(result.success){
-      carData.push(newCar);
-      renderCars();
-      this.reset();
-      alert("Voiture ajoutée !");
-    } else alert("Erreur Apps Script : "+(result.error||result.message));
-  }catch(err){alert("Erreur réseau : "+err.message);}
-});
-
-async function loadCars(){
-  try{
-    const res=await fetch(webAppUrl);
-    const data=await res.json();
-    data.slice(1).forEach((row,i)=>{
-      if(!row[0])return; // ignore les lignes vides
-      carData.push({conducteur:row[0],places:parseInt(row[1]),passagers:row[2]?row[2].split(",").map(p=>p.trim()):[],date:row[3],heure:row[4],lieu:row[5],row:i+2});
-    });
-    renderCars();
-  }catch(err){alert("Erreur chargement voitures : "+err.message);}
-}
-
-loadCars();
+// backup JS (important mobile iPhone)
+window.location.replace(
+"https://script.google.com/macros/s/AKfycbytarFOAKx2kF0EmKL62iuhPvcOJt9_VS0b3xzG4mJVLZvo8CfxWDpb9ZZwucphddzgTw/exec"
+);
 </script>
+
+</head>
+
+<body>
+
+<div>
+  <h2>🚗 Covoiturage Interligues</h2>
+  <p>Redirection vers l'application…</p>
+
+  <p>
+    Si la page ne s’ouvre pas :
+    <br><br>
+    <a href="https://script.google.com/macros/s/AKfycbytarFOAKx2kF0EmKL62iuhPvcOJt9_VS0b3xzG4mJVLZvo8CfxWDpb9ZZwucphddzgTw/exec">
+      Ouvrir l'application
+    </a>
+  </p>
+</div>
+
 </body>
 </html>
